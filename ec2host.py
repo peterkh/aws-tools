@@ -28,16 +28,24 @@ if args.tag:
 else:
     tag = config.get('DEFAULT', 'role_tag')
 
+filters = []
+
+if tag.find(',') >= 0:
+    for t in tag.split(','):
+        filters.append({ "tag:%s" % (t): args.role_name })
+else:
+    filters.append({ "tag:%s" % (tag): args.role_name })
+
 print "Region: %s" % (region)
 print "Hosts with tag: %s:%s" % (tag, args.role_name)
 
-filter = { "tag:%s" % (tag): args.role_name }
-
 ec2_conn = ec2.connect_to_region(region)
 
-reservations = ec2_conn.get_all_instances(filters=filter)
-instances = [i for r in reservations for i in r.instances]
+for filter in filters:
 
-for instance in instances:
-    print "%s %s %s" % (instance.tags['Name'], instance.id, instance.private_ip_address)
+    reservations = ec2_conn.get_all_instances(filters=filter)
+    instances = [i for r in reservations for i in r.instances]
+
+    for instance in instances:
+        print "%s %s %s %s" % (instance.tags['Name'], instance.id, instance.private_ip_address, instance.ip_address)
 
