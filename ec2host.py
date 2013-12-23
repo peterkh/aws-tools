@@ -41,9 +41,9 @@ print "Hosts with tag: %s:%s" % (tag, args.role_name)
 
 ec2_conn = ec2.connect_to_region(region)
 
-for filter in filters:
+for ec2_filter in filters:
 
-    reservations = ec2_conn.get_all_instances(filters=filter)
+    reservations = ec2_conn.get_all_instances(filters=ec2_filter)
     instances = [i for r in reservations for i in r.instances]
 
     for instance in instances:
