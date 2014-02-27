@@ -19,6 +19,18 @@ def get_instances(region, tags, tag_value):
         all_instances += [i for r in reservations for i in r.instances]
     return all_instances
 
+def get_role_names(region, tags):
+    filters = []
+    all_role_names = []
+    for tag in tags:
+        filters.append({ 'tag-key': tag })
+    for ec2_filter in filters:
+        ec2_conn = ec2.connect_to_region(region)
+        tags = ec2_conn.get_all_tags(filters=ec2_filter)
+        all_role_names += [str(t.value) for t in tags]
+    return sorted(list(set(all_role_names)))
+
+
 default_region_env = os.environ.get('AWS_DEFAULT_REGION')
 
 config = ConfigParser.SafeConfigParser()
@@ -31,6 +43,7 @@ config.set('DEFAULT', 'host_script', '/usr/local/bin/csshX')
 config.read("%s/.awstools.conf" % (expanduser("~")))
 
 conf_parser = argparse.ArgumentParser()
+conf_parser.add_argument("-R", "--get-roles", dest="get_roles", default=False, action='store_true', help="Get a list of roles in the region")
 conf_parser.add_argument("-r", "--region", dest="region", default=config.get('DEFAULT', 'region'), help="EC2 region instances are located in")
 conf_parser.add_argument("-t", "--tag", dest="tag", default=config.get('DEFAULT', 'role_tag'), help="The AWS tag name to search for instances with")
 conf_parser.add_argument("-s", "--script_mode", action='store_true', default=False, help="Output in script friendly mode (IP address list only)")
@@ -52,6 +65,12 @@ script_run_mode = args.script_run_mode
 host_script = args.host_script
 filters = []
 all_instances = []
+
+if args.get_roles:
+    role_list = get_role_names(region, tag)
+    for role in role_list:
+        print role
+    exit(0)
 
 for role in args.role_name:
     all_instances += get_instances(region, tag, role)
