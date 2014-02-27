@@ -7,6 +7,18 @@ import shlex
 from os.path import expanduser
 from subprocess import check_call
 
+def get_instances(region, tags, tag_value):
+    filters = []
+    all_instances = []
+    for tag in tags:
+        filters.append({ "tag:%s" % (tag): tag_value })
+
+    for ec2_filter in filters:
+        ec2_conn = ec2.connect_to_region(region)
+        reservations = ec2_conn.get_all_instances(filters=ec2_filter)
+        all_instances += [i for r in reservations for i in r.instances]
+    return all_instances
+
 default_region_env = os.environ.get('AWS_DEFAULT_REGION')
 
 config = ConfigParser.SafeConfigParser()
@@ -24,36 +36,29 @@ conf_parser.add_argument("-t", "--tag", dest="tag", default=config.get('DEFAULT'
 conf_parser.add_argument("-s", "--script_mode", action='store_true', default=False, help="Output in script friendly mode (IP address list only)")
 conf_parser.add_argument("-S", "--script_run_mode", action='store_true', default=False, help="Output in script friendly mode and runs host_script in config. Defaults to csshx")
 conf_parser.add_argument("--host_script", dest="host_script", default=config.get('DEFAULT', 'host_script'), help="The script to run against lists of hosts when using -S")
-conf_parser.add_argument("role_name")
+conf_parser.add_argument("role_name", nargs='+')
 
 args = conf_parser.parse_args()
 
 region = args.region
-tag = args.tag
+
+if args.tag.find(',') >= 0:
+    tag = args.tag.split(',')
+else:
+    tag = args.tag
+
 script_mode = args.script_mode or args.script_run_mode
 script_run_mode = args.script_run_mode
 host_script = args.host_script
 filters = []
+all_instances = []
 
-if tag.find(',') >= 0:
-    for t in tag.split(','):
-        filters.append({ "tag:%s" % (t): args.role_name })
-else:
-    filters.append({ "tag:%s" % (tag): args.role_name })
+for role in args.role_name:
+    all_instances += get_instances(region, tag, role)
 
 if not script_mode:
     print "Region: %s" % (region)
     print "Hosts with tag: %s:%s" % (tag, args.role_name)
-
-all_instances = []
-
-ec2_conn = ec2.connect_to_region(region)
-
-for ec2_filter in filters:
-
-    reservations = ec2_conn.get_all_instances(filters=ec2_filter)
-    instances = [i for r in reservations for i in r.instances]
-    all_instances += instances
 
 for instance in all_instances:
     if script_mode:
