@@ -45,7 +45,7 @@ region = args.region
 if args.tag.find(',') >= 0:
     tag = args.tag.split(',')
 else:
-    tag = args.tag
+    tag = [args.tag]
 
 script_mode = args.script_mode or args.script_run_mode
 script_run_mode = args.script_run_mode
