@@ -49,7 +49,7 @@ conf_parser.add_argument("-t", "--tag", dest="tag", default=config.get('DEFAULT'
 conf_parser.add_argument("-s", "--script_mode", action='store_true', default=False, help="Output in script friendly mode (IP address list only)")
 conf_parser.add_argument("-S", "--script_run_mode", action='store_true', default=False, help="Output in script friendly mode and runs host_script in config. Defaults to csshx")
 conf_parser.add_argument("--host_script", dest="host_script", default=config.get('DEFAULT', 'host_script'), help="The script to run against lists of hosts when using -S")
-conf_parser.add_argument("role_name", nargs='+')
+conf_parser.add_argument("role_name", default="", nargs='*')
 
 args = conf_parser.parse_args()
 
@@ -71,6 +71,11 @@ if args.get_roles:
     for role in role_list:
         print role
     exit(0)
+else:
+    if not args.role_name:
+        print "Error: Must provide a role name to search for"
+        conf_parser.print_help()
+        exit(1)
 
 for role in args.role_name:
     all_instances += get_instances(region, tag, role)
