@@ -42,6 +42,7 @@ else:
 config.set('DEFAULT', 'role_tag', 'role')
 config.set('DEFAULT', 'host_script', '/usr/local/bin/csshX')
 config.set('DEFAULT', 'profile', 'default')
+config.set('DEFAULT', 'separator', ' ')
 config.read("%s/.awstools.conf" % (expanduser("~")))
 
 conf_parser = argparse.ArgumentParser()
@@ -51,6 +52,7 @@ conf_parser.add_argument("-p", "--profile", dest="profile", default=config.get('
 conf_parser.add_argument("-t", "--tag", dest="tag", default=config.get('DEFAULT', 'role_tag'), help="The AWS tag name to search for instances with")
 conf_parser.add_argument("-s", "--script_mode", action='store_true', default=False, help="Output in script friendly mode (IP address list only)")
 conf_parser.add_argument("-S", "--script_run_mode", action='store_true', default=False, help="Output in script friendly mode and runs host_script in config. Defaults to csshx")
+conf_parser.add_argument("--separator", dest='separator', default=config.get('DEFAULT', 'separator'), help="Character used to separate ip addresses when using -S. Defaults to space")
 conf_parser.add_argument("--host_script", dest="host_script", default=config.get('DEFAULT', 'host_script'), help="The script to run against lists of hosts when using -S")
 conf_parser.add_argument("role_name", default="", nargs='*')
 
@@ -66,6 +68,7 @@ else:
 script_mode = args.script_mode or args.script_run_mode
 script_run_mode = args.script_run_mode
 host_script = args.host_script
+separator = args.separator
 filters = []
 all_instances = []
 
@@ -94,5 +97,6 @@ for instance in all_instances:
         print "%s %s %s %s" % (instance.tags['Name'], instance.id, instance.private_ip_address, instance.ip_address)
 
 if script_run_mode:
-    ip_string = str(" ".join([instance.private_ip_address for instance in all_instances]))
+    ip_string = str(separator.join([instance.private_ip_address for instance in all_instances]))
+    print ip_string
     check_call(shlex.split(host_script + " " + ip_string))
