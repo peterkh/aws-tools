@@ -41,7 +41,7 @@ else:
     config.set('DEFAULT', 'region', 'ap-southeast-2')
 config.set('DEFAULT', 'role_tag', 'role')
 config.set('DEFAULT', 'host_script', '/usr/local/bin/csshX')
-config.set('DEFAULT', 'profile', 'default')
+config.set('DEFAULT', 'profile', '')
 config.set('DEFAULT', 'separator', ' ')
 config.read("%s/.awstools.conf" % (expanduser("~")))
 
@@ -65,6 +65,11 @@ if args.tag.find(',') >= 0:
 else:
     tag = [args.tag]
 
+if args.profile == '':
+    profile = None
+else:
+    profile = args.profile
+
 script_mode = args.script_mode or args.script_run_mode
 script_run_mode = args.script_run_mode
 host_script = args.host_script
@@ -73,7 +78,7 @@ filters = []
 all_instances = []
 
 if args.get_roles:
-    role_list = get_role_names(region, tag, args.profile)
+    role_list = get_role_names(region, tag, profile)
     for role in role_list:
         print role
     exit(0)
@@ -84,7 +89,7 @@ else:
         exit(1)
 
 for role in args.role_name:
-    all_instances += get_instances(region, tag, role, args.profile)
+    all_instances += get_instances(region, tag, role, profile)
 
 if not script_mode:
     print "Region: %s" % (region)
