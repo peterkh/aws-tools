@@ -1,0 +1,9 @@
+#add this as ~/.ip_changer
+[default]
+region = ap-southeast-2
+bucket_name = my_bucket
+bucket_path = /ip_changer/
+ip_source_name = my_4g_device
+tcp_ports = 80 443
+sns_topic = arn:aws:sns:ap-southeast-2:<account_id>:my_sns_topic_name
+security_group_name = my_security_group

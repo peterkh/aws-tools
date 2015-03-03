@@ -1,8 +1,31 @@
 import boto.ec2
 import boto.s3
 import boto.sns
+import ConfigParser
+import os.path
 import requests
 from boto.s3.key import Key
+
+def read_config():
+    conf_dict = {}
+    config_file = os.path.expanduser('~/.ip_changer')
+    config = ConfigParser.ConfigParser()
+    if os.path.isfile(config_file):
+        config.read(config_file)
+    else:
+        print "Cannot load config file: %s" % config_file
+        exit(1)
+    for opt in config.options('default'):
+        value = config.get('default', opt)
+        if opt == 'tcp_ports':
+            try:
+                conf_dict[opt] = set([int(port) for port in value.split(" ")])
+            except ValueError:
+                print "Invalid port numbers passed in for tcp_ports: %s" % value
+                exit(1)
+        else:
+            conf_dict[opt] = value
+    return conf_dict
 
 def search_for_rule(cidr, sg):
     for rule in sg.rules:
@@ -11,21 +34,22 @@ def search_for_rule(cidr, sg):
             return True
     return False
 
-def send_sns(message):
-    sns_conn = boto.sns.connect_to_region('ap-southeast-2')
-    sns_conn.publish(topic='xxxx', message=message)
+def send_sns(message, region, topic):
+    sns_conn = boto.sns.connect_to_region(region)
+    sns_conn.publish(topic=topic, message=message)
 
 if __name__ == '__main__':
-    sg_name = 'xxxx'
-    bucket_name = 'xxxx'
+    config = read_config()
 
-    s3conn = boto.s3.connect_to_region('ap-southeast-2')
-    bucket = s3conn.get_bucket(bucket_name)
-    
+    s3conn = boto.s3.connect_to_region(config['region'])
+    bucket = s3conn.get_bucket(config['bucket_name'])
+
     k = Key(bucket)
-    k.key = 'ip_changer.txt'
-    old_cidr = k.get_contents_as_string()
-    #print "The old IP is: %s" % old_cidr
+    k.key = '%s/ip_changer_%s.txt' % (config['bucket_path'], config['ip_source_name'])
+    try:
+        old_cidr = k.get_contents_as_string()
+    except boto.exception.S3ResponseError:
+        old_cidr = '0.0.0.0/0'
 
     t = 0
     got_ip = False
@@ -38,7 +62,7 @@ if __name__ == '__main__':
             t += 1
             pass
     if not got_ip:
-        send_sns('IP_changer: Unable to get new IP address.')
+        send_sns('IP_changer: Unable to get new IP address.', config['region'], config['sns_topic'])
         exit(1)
     current_ip = r.text.strip()
     current_cidr = '%s/32' % current_ip
@@ -56,17 +80,17 @@ if __name__ == '__main__':
     message = 'IP_changer:\n'
 
     for sg in rs:
-        if sg.name == sg_name:
+        if sg.name == config['security_group_name']:
             #print "Found SG %s" % sg_name
             if search_for_rule(old_cidr, sg):
                 message += "Found rule for old IP %s, removing.\n" % old_cidr
-                sg.revoke('tcp', 22, 22, cidr_ip=old_cidr)
+                sg.revoke('tcp', 0, 65535, cidr_ip=old_cidr)
             if search_for_rule(current_cidr, sg):
                 message += "Found rule for new IP %s already, nothing to do.\n" % current_cidr
             else:
-                sg.authorize('tcp', 22, 22, current_cidr)
+                sg.authorize('tcp', 0, 65535, current_cidr)
                 message += "Adding rule for new IP %s.\n" % current_cidr
             k.set_contents_from_string(current_cidr)
-            send_sns(message)
+            send_sns(message, config['region'], config['sns_topic'])
 
 
